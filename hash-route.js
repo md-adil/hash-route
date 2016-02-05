@@ -3,6 +3,9 @@
 		console.err("hashRoute function require jQuery.");
 		return;
 	}
+	function log () {
+		console.log.apply(console, arguments);
+	}
 	function Event() {
 		this.callbacks = {};
 	}
@@ -43,6 +46,8 @@
 	};
 
 
+	// variables
+
 	var routesObj = {},
 		events = new Event(),
 		routeGenrater = $(w).on('hashchange', function(e) {
@@ -53,10 +58,25 @@
 
 	// helper functions
 	function encodelink(str) {
-		return str.replace(/\s+/g, '_');
+		// Adding backslashes to these words -, \, =, /, &
+		// Converting spaces to hiphen (more url friendly)
+		return str.replace(/([\-\=\/\&\\])/g, '\\$1').replace(/\s+/g, '-');
 	}
+
 	function decodelink(link) {
-		return link.replace(/\_/g, ' ');
+		return link.replace(/([^\\])\-/g, '$1 ').replace(/\\(.)/g, '$1');
+	}
+
+	function extractSlugs(hash) {
+		return hash.match(/(\\.|[^\/])+/g);
+	}
+
+	function extractValues(slug) {
+		return slug.match(/(\\.|[^\=])+/g);
+	}
+
+	function extractArrays(values) {
+		return values.match(/(\\.|[^\&])+/g);
 	}
 
 	function isArray( item ) {
@@ -73,6 +93,7 @@
 	function isString(str) {
 		return typeof str == 'string';
 	}
+
 	function unique(array){
 	    return array.filter(function(el, index, arr) {
 	        return index === arr.indexOf(el);
@@ -84,18 +105,20 @@
 		if(!hash) return {};
 		var routes = {},
 			config = route.configs,
-			parts = hash.split(config.seprator);
-		for(var i = 0; i < parts.length; i++) {
-			var part = parts[i];
-			if(part) {
-				var querys = part.split('=');
+			slugs = extractSlugs(hash);
+		for(var i = 0; i < slugs.length; i++) {
+			var slug = slugs[i];
+			if(slug) {
+				var querys = extractValues(slug);
 				if(querys[0] && querys[1]) {
-					routes[querys[0]] = querys[1].split(config.array).map(decodelink);
+					routes[querys[0]] = extractArrays(querys[1]).map(decodelink);
 				}
 			}
 		}
 		return routes;
 	}
+
+	
 
 	function joinRoute(routeObj) {
 		var config = route.configs;
@@ -110,7 +133,7 @@
 		w.location.href = url + '#' + route;
 	};
 
-	var route = function( param ) {
+	function route( param ) {
 		var myRoutes = $.extend({}, routesObj);
 		if(!param) return myRoutes;
 		if(isArray(param)) {
@@ -200,10 +223,12 @@
 	})
 
 	route.configs = {
-		seprator: '/',
-		array: '&&'
+		slugSeprator: '/',
+		arraySeprator: '&'
 	}
+
 	routeGenrater.trigger('hashchange');
+
 	if ( typeof define === "function" && define.amd ) {
 		define( "hash-route", [], function () { return route; } );
 	} else {
